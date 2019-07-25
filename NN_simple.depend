@@ -1,0 +1,18 @@
+# depslib dependency file v1.0
+1564076708 source:/home/tuoms/C++/Neural_networks/Test_proj/NN_simple/main.cpp
+	<iostream>
+	<fstream>
+	<SFML/Graphics/Image.hpp>
+	"network.h"
+
+1564060246 /home/tuoms/C++/Neural_networks/Test_proj/NN_simple/network.h
+	<vector>
+	<Eigen/Dense>
+	<Eigen/Core>
+
+1564075402 source:/home/tuoms/C++/Neural_networks/Test_proj/NN_simple/network.cpp
+	"network.h"
+	<random>
+	<math.h>
+	<stdarg.h>
+
