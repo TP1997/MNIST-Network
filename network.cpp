@@ -100,10 +100,44 @@ VectorXf Network::feedforward2(VectorXf a){
     return a;
 }
 
-/** Stochastic gradient descent.
+/** Stochastic gradient descent (used learning algorithm).
+*   @param miniBatch Set (batch) of randomly picked training examples. Each column of the matrix represent's single tarining example.
+*   @param learningRate
+*/
+void Network::SGD(MatrixXf miniBatch, unsigned int batchSize, float learningRate){
+    for(unsigned int n=0; n<batchSize; n++){
+
+    }
+}
+
+/**
 *
 *
 */
-void Network::SGD(){
+void Network::SGD_update(VectorXf trainingExample, float learningRate){
+
+}
+
+/** Calculate new weights & biases based on cost function.
+*   @param trnExp Single training example.
+*
+*/
+void Network::backpropagate(VectorXf trnExp){
+
+}
+
+/** Network's cost function.
+*   @param y Desired output
+*   @return Network's cost value.
+*/
+float Network::cost(const VectorXf &y){
+
+}
+
+/** Derivative of cost function (respect by output layer).
+*   @param y Desired output.
+*   @return Error values for neurons in the output layer.
+*/
+Vectorxf Dcost(const VectorXf &y){
 
 }

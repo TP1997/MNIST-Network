@@ -1,5 +1,9 @@
 #include <iostream>
 #include <fstream>
+#include <numeric>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
 
 #include <SFML/Graphics/Image.hpp>
 
@@ -18,8 +22,11 @@ unsigned char *mnistLabelReader(const char *path);
 uint32_t reverseInt(uint32_t n);
 uint32_t bytewiseReverseInt(uint32_t n);
 void printMnist(unsigned char *buffer, const unsigned int rows, const unsigned int cols, const unsigned int noOfImages);
+void printVectorImage(const VectorXf &vec, const unsigned int rows, const unsigned int cols);
 unsigned char* getSingleMnistImageData(unsigned const char *buffer, int idx, const size_t imgSize);
-VectorXf charToFloatVector(const unsigned char *buffer, const unsigned int bufferSize);
+VectorXf charToFloatVector(unsigned char *buffer, const unsigned int bufferSize);
+
+MatrixXf createRandomMiniBatch(unsigned char *mnistBuffer, vector<int> indices, const unsigned int batchSize, const unsigned int imagePixelCount);
 
 /** GLOBALS                                                 */                              //Training-set, 60 000 examples.
 const char* TRAINING_SET_LABEL_FILE=    "mnist/training_set/train-labels.idx1-ubyte";           //Training-set labels.
@@ -33,23 +40,21 @@ const char* TEST_SET_IMAGE_FILE=        "mnist/test_set/t10k-images.idx3-ubyte";
 int main()
 {
     unsigned int rows, cols, noOfImages;
+//Load test set data.
     unsigned char *data=mnistImageReader(TEST_SET_IMAGE_FILE, rows, cols, noOfImages);
     unsigned char *labels=mnistLabelReader(TEST_SET_LABEL_FILE);
-    //printMnist(data, rows, cols, 1);
+//Create index vector for loaded images. Used for shuffling images.
+    vector<int> indices(noOfImages);
+    std::iota(std::begin(indices), std::end(indices), 0);
 
-    unsigned char *img1=getSingleMnistImageData(data, 0, rows*cols*sizeof(char));
-    VectorXf vec=charToFloatVector(img1, rows*cols);
-    for(unsigned int n=0; n<vec.rows(); n++){
-        //const char *eol=(n%rows==0)?( (n%(rows*cols)==0)? "\n\n" : "\n" ) : " ";
-        //cout << (buffer[n]==0? ".":"#") << eol;
-        printf("%c%s", (vec(n)==0.0f? '.':'#'), ((n+1)%rows==0)?( ((n+1)%(rows*cols)==0)? "\n\n" : "\n" ) : " ");
+//TEST SPACE....
+
+
+    MatrixXf miniBatch=createRandomMiniBatch(data, indices, 4, rows*cols);
+    for(unsigned int n=0; n<miniBatch.cols(); n++){
+        printVectorImage(miniBatch.col(n), rows, cols);
+        cout << endl;
     }
-    //unsigned char trueVal=labels[1];
-    //cout << "Number: " << (int)trueVal << endl;
-    //printMnist(img1, rows, cols, 1);
-    //cout << "from buffer" << endl;
-    //printMnist(data, rows, cols, noOfImages);
-
 
     return 0;
 }
@@ -153,6 +158,16 @@ void printMnist(unsigned char *buffer, const unsigned int rows, const unsigned i
     }
 }
 
+/**
+*   TESTING PURPOSES.
+*
+*/
+void printVectorImage(const VectorXf &vec, const unsigned int rows, const unsigned int cols){
+    for(unsigned int n=0; n<vec.rows(); n++){
+        printf("%c%s", (vec(n)==0.0f? '.':'#'), ((n+1)%rows==0)?( ((n+1)%(rows*cols)==0)? "\n\n" : "\n" ) : " ");
+    }
+}
+
 /** Reverse 32-bit unsigned intefer bytewise
 *   @param n Integer to reversed.
 *   @return n Bytewise-reversed integer.
@@ -167,12 +182,32 @@ uint32_t bytewiseReverseInt(uint32_t n){
 *
 *
 */
-VectorXf charToFloatVector(const unsigned char *buffer, const unsigned int bufferSize){
+VectorXf charToFloatVector(unsigned char *buffer, const unsigned int bufferSize){
     VectorXf vec(bufferSize);
     for(unsigned int n=0; n<bufferSize; n++){
         vec(n)=buffer[n]/255.0f;
     }
     return vec;
+}
+
+/**
+*
+*
+*/
+MatrixXf createRandomMiniBatch(unsigned char *mnistBuffer, vector<int> indices, const unsigned int batchSize, const unsigned int imagePixelCount){
+    MatrixXf miniBatch(imagePixelCount, batchSize);
+
+//Set seed for random generation operations.
+    std::srand(unsigned(std::time(0)));
+    for(unsigned int n=0; n<batchSize; n++){
+        std::random_shuffle(indices.begin(), indices.end());
+
+        unsigned char *rndImgData=getSingleMnistImageData(mnistBuffer, indices.front(), imagePixelCount);
+        miniBatch.col(n)=charToFloatVector(rndImgData, imagePixelCount);
+        delete[] rndImgData;
+    }
+
+    return miniBatch;
 }
 
 /** TRASH                   */

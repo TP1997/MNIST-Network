@@ -46,7 +46,11 @@ private:
     VectorXf Dsigmoid(const VectorXf &z);                                    //Derivative of sigmoid function.
     void feedforward(VectorXf l);
     VectorXf feedforward2(VectorXf a);
-    void SGD();
+    void SGD(MatrixXf miniBatch, float learningRate);                        //Learning algorithm.
+    void SGD_update(VectorXf trainingExample, float learningRate);
+    void backpropagate(VectorXf trnExp);
+    float cost(const VectorXf &y);                                           //Network's cost function.
+    Vectorxf Dcost(const VectorXf &y);                                       //Derivative of cost function (respect by output layer)
 };
 
 #endif // NETWORK_H_INCLUDED
