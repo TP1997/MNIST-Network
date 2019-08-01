@@ -35,6 +35,8 @@ private:
                                                                        //   weightMatrices[l]           = weight matrix for l+1:th layer.
                                                                        //   ==> l-1 - weightMatrices[l] - l.
 
+    vector<VectorXf> neuronInput;                                      //Neuron z (input) values.
+
     vector<VectorXf> neuronActivation;                                 //Neuron activation (output) values.
                                                                        //   neuronActivation[l].(n)     = n:th neuron in the l:th layer.
                                                                        //   neuronActivation[0]         = Activation values in input layer.
@@ -42,15 +44,17 @@ private:
                                                                        //   neuronActivation[mLayers-1] = Activation values in output layer.
 
 //Member functions.
-    VectorXf sigmoid(const VectorXf &z);                                     //Sigmoid (activation) function.
-    VectorXf Dsigmoid(const VectorXf &z);                                    //Derivative of sigmoid function.
-    void feedforward(VectorXf l);
-    VectorXf feedforward2(VectorXf a);
-    void SGD(MatrixXf miniBatch, float learningRate);                        //Learning algorithm.
-    void SGD_update(VectorXf trainingExample, float learningRate);
-    void backpropagate(VectorXf trnExp);
-    float cost(const VectorXf &y);                                           //Network's cost function.
-    Vectorxf Dcost(const VectorXf &y);                                       //Derivative of cost function (respect by output layer)
+    VectorXf sigmoid(const VectorXf &z);                                                        //Sigmoid (activation) function.
+    vector<VectorXf> feedforward(VectorXf l);                                                   //Feedforward.
+    VectorXf feedforward2(VectorXf a);                                                          //Feedforward2.
+    void SGD(MatrixXf miniBatch, unsigned int batchSize, float learningRate);                   //Learning algorithm.
+    void SGD_update(const MatrixXf &minibatch, const MatrixXf &corrOutput, float learningRate); //update weights & biases.
+    void backpropagate(const VectorXf &trnExp, const VectorXf &y);                              //Backpropagate.
+    vector<VectorXf> backpropagate2(const VectorXf &trnExp, const VectorXf &y);                 //Backpropagate2.
+    void backpropagate3(const VectorXf &trnExp, const VectorXf &y);                             //Backpropagate3.
+    float cost(const VectorXf &y);                                                              //Network's cost function.
+    VectorXf Dcost(const VectorXf &y);                                                          //Derivative of cost function (respect by output layer)
+    VectorXf Dsigmoid(const VectorXf &z);                                                       //Derivative of sigmoid function.
 };
 
 #endif // NETWORK_H_INCLUDED
