@@ -5,24 +5,14 @@
 #include <ctime>
 #include <algorithm>
 
-#include <SFML/Graphics/Image.hpp>
-
 #include "network.h"
+#include "mnistdata.h"
 
 using namespace std;
 /** NOT USED FUNCTIONS                                    */
-//Trash:
-unsigned char *loadImageData(const char *path, unsigned int &width, unsigned int &height, bool flip=true);
-int reverseInt2 (int i);
-char reverseChar(char c);
-void printBit(int n);
-uint32_t reverseInt(uint32_t n);
-VectorXd trainingExampleOutput(unsigned char *buffer, const unsigned int idx);
-MatrixXd createRandomMiniBatch(unsigned char *mnistBuffer, unsigned int noOfImages, const unsigned int batchSize, const unsigned int imagePixelCount);
 //Debugging:
-void printMnist(unsigned char *buffer, const unsigned int rows, const unsigned int cols, const unsigned int noOfImages);
-void printVectorLabel(const VectorXd &vec);
 bool tryParse(string &input, int &output);
+void toTxtFile(const char *fname, const vector<double> &buffer);
 
 /** USED FUNCTIONS                                          */
 //Printing:
@@ -38,6 +28,7 @@ unsigned char* mnistImageReader(const char *path, unsigned int &rows, unsigned i
 unsigned char *mnistLabelReader(const char *path);
 vector<VectorXd> parseImageData(unsigned char *buffer, const unsigned int imgSize, const unsigned int noOfImages);
 vector<VectorXd> parseLabelData(unsigned char *buffer, const unsigned int nOfElements);
+vector<double> parseLabelData2(unsigned char *buffer, const unsigned int nOfElements);
 //Training:
 vector<unsigned int> pickRandomIdices(const unsigned int cnt, const unsigned int upperRange);
 MatrixXd crtRndmMinibatch(vector<VectorXd> &data, vector<unsigned int> &idx, const unsigned int imgSize);
@@ -56,108 +47,63 @@ int main()
 {
 //                      VARIABLE INITALIZATION.
     unsigned int rows, cols;                                                                //Image dimensions
-    unsigned int trainImages, testImages=0;                                                 //Number of images in the set.
+    unsigned int trnCount, tstCount=0;                                                      //Number of images in the set.
 //Load training set.
-    unsigned char *trainData  = mnistImageReader(TRAINING_SET_IMAGE_FILE, rows, cols, trainImages);
-    unsigned char *trainLabel = mnistLabelReader(TRAINING_SET_LABEL_FILE);
+    unsigned char *trnData  = mnistImageReader(TRAINING_SET_IMAGE_FILE, rows, cols, trnCount);
+    unsigned char *trnLabel = mnistLabelReader(TRAINING_SET_LABEL_FILE);
 //Load test set.
-    unsigned char *testData   = mnistImageReader(TEST_SET_IMAGE_FILE, rows, cols, testImages);
-    unsigned char *testLabel  = mnistLabelReader(TEST_SET_LABEL_FILE);
+    unsigned char *tstData   = mnistImageReader(TEST_SET_IMAGE_FILE, rows, cols, tstCount);
+    unsigned char *tstLabel  = mnistLabelReader(TEST_SET_LABEL_FILE);
 //Parse & convert training data.
-    vector<VectorXd> imageTrainData = parseImageData(trainData, rows*cols, trainImages);
-    vector<VectorXd> labelTrainData = parseLabelData(trainLabel, trainImages);
+    vector<VectorXd> imageTrnData = parseImageData(trnData, rows*cols, trnCount);
+    vector<VectorXd> labelTrnData = parseLabelData(trnLabel, trnCount);
 //Parse & convert test data.
-    vector<VectorXd> imageTestData  = parseImageData(testData, rows*cols, testImages);
-    vector<VectorXd> labelTestData  = parseLabelData(testLabel, testImages);
+    vector<VectorXd> imageTstData  = parseImageData(tstData, rows*cols, tstCount);
+    vector<double> labelTstData  = parseLabelData2(tstLabel, tstCount);
+//Create training set.
+    MnistData<VectorXd> trainingData(imageTrnData, labelTrnData);
+//Create test set.
+    MnistData<double> testData(imageTstData, labelTstData);
 //Create network.
 
 
 //                  NETWORK TRAINING
-    unsigned int epochs = 15000;                                                            //Number of ephocs (how many mBatches is used to training).
+    unsigned int epochs = 1;                                                            //Number of training ephocs.
     unsigned int mbSize = 10;                                                           //Size of SGD training batch.
-    double eta          = 3.0;                                                           //Network's learning rate.
+    double eta          = 3.0;                                                          //Network's learning rate.
+    vector<double> NN_accuracy;                                                         //Get accuracy results while training.
 
     Network network(3, 784, 30, 10);                                                    //Create network with 3 layers with sizes of 784, 30, 10.
 
-    network.SGD(imageTrainData, labelTrainData, mbSize, epochs, eta);
-/*
-    for(unsigned int n=0; n<ephocs; n++){                                                     //Train the network.
-        vector<unsigned int> rndmIdx=pickRandomIdices(mBatchSize, trainImages);               //Pick random indeces to sample training data.
-        MatrixXd miniBatch = crtRndmMinibatch(imageTrainData, rndmIdx, rows*cols);            //Create random minibatch.
-        MatrixXd labels    = crtOutputVectors(labelTrainData, rndmIdx);                       //Create label set based on minibatch.
-        network.SGD_update(miniBatch, labels, learningRate);
-        cout << "Epoch " << n+1 << " complete..." << endl;
-    }*/
+    //network.SGD_debug(imageTrainData, labelTrainData, mbSize, epochs, eta, imageTestData, labelTestData, NN_accuracy);
+    //toTxtFile("accuracy.txt", NN_accuracy);
+    network.train(trainingData, mbSize, epochs, eta);                             //New
+    unsigned int rec=network.evaluate(testData);
+    cout << rec << "/" << tstCount << endl;
 
 //                  NETWORK TESTSPACE
-    network.evaluate(imageTestData, labelTestData);
 
     bool quit=false;
     string input;
     int idx=0;
     VectorXd outputVec(10);
 
-    cout << "Type index in range [0, " << imageTestData.size()-1 << "]. Quit by typing some rubbish." << endl;
+    cout << "Type index in range [0, " << tstCount-1 << "]. Quit by typing some rubbish." << endl;
     getline(cin, input);
     quit=tryParse(input, idx);
     while(!quit){
-        printVectorImage(imageTestData[idx], rows, cols);
-        outputVec=network.recDigit(imageTestData[idx]);
-        cout << "Correct value: " << getVectorLabelConverted(labelTestData[idx]) << endl;
+        printVectorImage(testData.getImg(idx), rows, cols);
+        outputVec=network.recDigit(testData.getImg(idx));
+        cout << "Correct value: " << testData.getLbl(idx) << endl;
         cout << "Network recognized as: " << getVectorLabelConverted(outputVec) << endl;
-        cout << "Networks output as vector:" << endl;
-        printVectorLabel(outputVec);
+        //cout << "Networks output as vector:\n" << outputVec << endl;
 
-        cout << "Type index in range [0, " << imageTestData.size()-1 << "]. Quit by typing some rubbish." << endl;
+        cout << "Type index in range [0, " << tstCount-1 << "]. Quit by typing some rubbish." << endl;
         getline(cin, input);
         quit=tryParse(input, idx);
 
     }
     cout << "End..." << endl;
-/*    unsigned int tBatchSize=10;
-
-    vector<unsigned int> idx=pickRandomIdices(tBatchSize, testImages);
-    MatrixXd testBatch=crtRndmMinibatch(imageTestData, idx, rows*cols);
-    MatrixXd testLabels=crtOutputVectors(labelTestData, idx);
-
-    unsigned int recognized=0;
-    for(unsigned int n=0; n<tBatchSize; n++){
-        VectorXd output=network.recDigit(testBatch.col(n));
-        double netVal=getVectorLabelConverted(output);
-        double corrVal=getVectorLabelConverted(testLabels.col(n));
-        //cout << netVal << " " << corrVal << endl;
-        cout << "true: " << corrVal << endl;
-        cout << "network: " << netVal << endl;
-        cout << output << endl << endl;
-        printVectorImage(testBatch.col(n), rows, cols);
-        if(netVal==corrVal){
-            recognized++;
-        }
-    }
-
-    cout << recognized << "/" << tBatchSize << " digits recognized correctly." << endl;*/
-
-    /*
-    VectorXd output=network.recDigit(imageTrainData[1]);
-    printVectorImage(imageTrainData[1], rows, cols);
-    cout << "Network recognised as: ";
-    printVectorLabelConverted(output);
-    cout << endl;
-    printVectorLabel(output);*/
-
-
-//SANDBOX....
-/*
-    vector<unsigned int> idx=pickRandomIdices(10, 10);
-
-    for(unsigned int n=0; n<batchSize; n++){
-        cout << "label :" << n << endl;
-        printVectorLabel(labels.col(n));
-        cout << endl;
-        printVectorLabelConverted(labels.col(n));
-        //printVectorImage(minibatch.col(n), rows, cols);
-
-    }*/
 
     return 0;
 }
@@ -197,11 +143,12 @@ unsigned char* mnistImageReader(const char *path, unsigned int &rows, unsigned i
         inputFile.read((char*)&buffer[0], (nOfImages*rows*cols)*sizeof(char));
 
         inputFile.close();
+        return buffer;
     }
     else{
         cout << "Can't open the file." << endl;
+        return nullptr;
     }
-    return buffer;
 }
 
 /** Read label data from binary file
@@ -228,11 +175,12 @@ unsigned char *mnistLabelReader(const char *path){
         inputFile.read((char*)&buffer[0], (noOfItems)*sizeof(char));
 
         inputFile.close();
+        return buffer;
     }
     else{
         cout << "Can't open the file." << endl;
+        return nullptr;
     }
-    return buffer;
 
 }
 
@@ -261,7 +209,20 @@ vector<VectorXd> parseLabelData(unsigned char *buffer, const unsigned int nOfEle
     vector<VectorXd> labels(nOfElements);
 
     unsigned int n=0;
-    for_each( labels.begin(), labels.end(), [&](VectorXd &v){v.resize(10); v.setOnes(10); v*=0.01; v(int(buffer[n++]))=0.99f;} );
+    for_each( labels.begin(), labels.end(), [&](VectorXd &v){v.resize(10); v(int(buffer[n++]))=1.0;} );
+    //for_each( labels.begin(), labels.end(), [&](VectorXd &v){v.resize(10); v.setOnes(10); v*=0.01; v(int(buffer[n++]))=0.99f;} );
+
+    return labels;
+}
+
+/**
+*
+*/
+vector<double> parseLabelData2(unsigned char *buffer, const unsigned int nOfElements){
+    vector<double> labels(nOfElements);
+
+    unsigned int i=0;
+    for_each( labels.begin(), labels.end(), [&](double &d){d=(double)buffer[i++];} );
 
     return labels;
 }
@@ -373,30 +334,6 @@ double getVectorLabelConverted(const VectorXd &vec){
     return maxIdx;
 }
 
-/*************************************************************/
-/*********FUNCTION DECLARATIONS (DEBUG/TRASH/UNUSED) *********/
-
-/** Print images from Mnist-dataset
-*   @param buffer, Pointer to buffer which holds the image data.
-*   @param rows, Pixel rows in single image.
-*   @param cols, Pixel columns in single image.
-*   @param nOfImages, Number of images which will be printed.
-*/
-void printMnist(unsigned char *buffer, const unsigned int rows, const unsigned int cols, const unsigned int nOfImages){
-    for(unsigned int n=0; n<nOfImages*rows*cols; n++){
-        //const char *eol=(n%rows==0)?( (n%(rows*cols)==0)? "\n\n" : "\n" ) : " ";
-        //cout << (buffer[n]==0? ".":"#") << eol;
-        printf("%c%s", (buffer[n]==0? '.':'#'), ((n+1)%rows==0)?( ((n+1)%(rows*cols)==0)? "\n\n" : "\n" ) : " ");
-    }
-}
-
-/** Function for printing label in vector-format.
-*   @param vec, Label data in vector format.
-*/
-void printVectorLabel(const VectorXd &vec){
-    cout << vec << endl << endl;
-}
-
 /** DEBUGGING
 *
 */
@@ -404,62 +341,16 @@ bool tryParse(string &input, int &output){
     try{
         output=stoi(input);
     }
-    catch(std::invalid_argument){
+    catch(std::invalid_argument &e){
         return true;
     }
     return false;
 
 }
-MatrixXd createRandomMiniBatch(unsigned char *mnistBuffer, unsigned int noOfImages, const unsigned int batchSize, const unsigned int imagePixelCount){
-    MatrixXd miniBatch(imagePixelCount, batchSize);
-
-//Set seed for random generation operations.
-    std::srand(unsigned(std::time(0)));
-    for(unsigned int n=0; n<batchSize; n++){
-        //std::random_shuffle(indices.begin(), indices.end());
-        int rndmIdx=rand()%noOfImages;
-        unsigned char *rndImgData=getSingleMnistImageData(mnistBuffer, rndmIdx, imagePixelCount);
-        miniBatch.col(n)=toDoubleVector(rndImgData, imagePixelCount);
-        delete[] rndImgData;
+void toTxtFile(const char *fname, const vector<double> &buffer){
+    ofstream file(fname);
+    for(double d : buffer){
+        file << d << "\n";
     }
-
-    return miniBatch;
-}
-
-unsigned char *loadImageData(const char *path, unsigned int &width, unsigned int &height, bool flip){
-    sf::Image img;
-    if(!img.loadFromFile(path)){
-        cout << "Coud not load image: " << path << endl;
-        return nullptr;
-    }
-    if(flip)
-        img.flipVertically();
-
-    sf::Vector2u measures=img.getSize();
-    width=measures.x;
-    height=measures.y;
-    unsigned char *data=(unsigned char*)img.getPixelsPtr();
-
-    return data;
-}
-void printBit(int n){
-    for(int s=31, m=1; s>=0; s--, m++){
-        cout << ((n>>s)&1);
-        if(m%4==0)
-            cout << " ";
-    }
-}
-char reverseChar(char c){
-    c=((c>>2)&0x33) | ((c<<2)&0xcc);
-    c=((c>>1)&0x55) | ((c<<1)&0xaa);
-
-    return c;
-}
-uint32_t reverseInt(uint32_t n){
-    n=((n>>16)&0x0000ffff) | ((n<<16)&0xffff0000);
-    n=((n>>8)&0x00ff00ff) | ((n<<8)&0xff00ff00);
-    n=((n>>4)&0x0f0f0f0f) | ((n<<4)&0xf0f0f0f0);
-    n=((n>>2)&0x33333333) | ((n<<2)&0xcccccccc);
-    n=((n>>1)&0x55555555) | ((n<<1)&0xaaaaaaaa);
-    return n;
+    file.close();
 }
